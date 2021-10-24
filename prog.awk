@@ -26,6 +26,17 @@ function run_code(cmd) {
   return _code
 }
 
+BEGIN {
+  count["input"] = 0
+  count["process"] = 0
+
+  out_file = "out.txt"
+  err_file = "err.txt"
+
+  printf("") > out_file
+  printf("") > err_file
+}
+
 $1 == "input" {
   if (! $2) {
     error_msg("message missing 1st argument: " $0)
@@ -34,7 +45,7 @@ $1 == "input" {
 
   file = run_out("mktemp")
   if (run_code("set -x; curl -Lso " file " " $2) != 0) {
-    error_msg("failed to download " $2)
+    printf("err failed to download %s\n", $2)
   } else {
     printf("process %s %s\n", $2, file)
   }
@@ -51,7 +62,7 @@ $1 == "process" {
   }
 
   if (run_code("set -x; magick jpeg:" $3 " -print '%b' null:") != 0) {
-    error_msg("failed to process " $3)
+    printf("err failed to process %s\n", $3)
   } else {
     printf("out %s %s %s\n", $2, $3, _output)
   }
@@ -71,5 +82,10 @@ $1 == "out" {
     exit 1
   }
 
-  print $2 " " $3 " " $4 > "/dev/stderr"
+  printf("%s %s %s\n", $2, $3, $4) >> out_file
+}
+
+$1 == "err" {
+  msg = substr($0, length($1)+2)
+  printf("%s\n", msg) >> err_file
 }
