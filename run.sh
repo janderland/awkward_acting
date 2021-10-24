@@ -37,6 +37,7 @@ fi
 # input file. If a buffer directory was not provided, a random
 # temporary directory will be used.
 BUFFER_DIR=${BUFFER_DIR:-$(mktemp -d)}
+mkdir -p $BUFFER_DIR
 BUFFERS=( "${BUFFER_DIR}/a.txt" "${BUFFER_DIR}/b.txt" )
 awk '$0 = "input " $0' "$INPUT_FILE" > "${BUFFERS[1]}"
 
