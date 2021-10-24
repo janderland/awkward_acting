@@ -2,6 +2,10 @@ function error_msg(msg) {
   print "ERR! " msg > "/dev/stderr"
 }
 
+function debug_msg(msg) {
+  print "DEBUG: " msg > "/dev/stderr"
+}
+
 function run(cmd) {
   if ((_code = system(cmd)) != 0) {
     error_msg("shell command failed: " cmd)
@@ -26,15 +30,22 @@ function run_code(cmd) {
   return _code
 }
 
+function under_limit(id, msg) {
+  if(_count[id] < _limit[id]) {
+    _count[id] = _count[id] + 1
+    return 1
+  } else {
+    print msg
+    return 0
+  }
+}
+
 BEGIN {
-  count["input"] = 0
-  count["process"] = 0
+  _count["input"] = 0
+  _limit["input"] = 4
 
   out_file = "out.txt"
   err_file = "err.txt"
-
-  printf("") > out_file
-  printf("") > err_file
 }
 
 $1 == "input" {
@@ -43,11 +54,13 @@ $1 == "input" {
     exit 1
   }
 
-  file = run_out("mktemp")
-  if (run_code("set -x; curl -Lso " file " " $2) != 0) {
-    printf("err failed to download %s\n", $2)
-  } else {
-    printf("process %s %s\n", $2, file)
+  if (under_limit("input", $0)) {
+    file = run_out("mktemp")
+    if (run_code("set -x; curl -Lso " file " " $2) != 0) {
+      printf("err failed to download %s\n", $2)
+    } else {
+      printf("process %s %s\n", $2, file)
+    }
   }
 }
 
