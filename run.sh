@@ -2,12 +2,52 @@
 set -euo pipefail
 
 # Change directory to repo root.
-cd "${0%/*}/."
+
+cd "${0%/*}"
+
+
+
+# This required arg specifies a file for initializing
+# the inital messages. Each line of text from this
+# file is sent as an "input" message.
+
+INPUT_FILE=""
+
+
+# If this arg is provided, all messages will
+# be copied into this file.
 
 LOG_FILE=""
-PROG_FILE=""
-INPUT_FILE=""
-BUFFER_DIR=""
+
+
+# Internal state specifying where the message
+# buffers are stored.
+
+BUFFER_DIR="$(mktemp -d)"
+
+
+# Internal state specifying the current cycle.
+
+CYCLE=0
+
+
+
+# Returns the path to the current set of input messages.
+
+function current_messages {
+  echo "${BUFFER_DIR}/$((CYCLE % 2)).txt"
+}
+
+
+# Returns the path to the input messages for the next cycle.
+
+function next_messages {
+  echo "${BUFFER_DIR}/$(((CYCLE + 1) % 2)).txt"
+}
+
+
+
+# Parse command-line arguments.
 
 while [[ $# -gt 0 ]]; do
   if [[ $# -lt 2 ]]; then
@@ -15,46 +55,37 @@ while [[ $# -gt 0 ]]; do
     exit 1
   fi
   case "$1" in
-    --log-file)   LOG_FILE="$2"   ;;
-    --prog-file)  PROG_FILE="$2"  ;;
     --input-file) INPUT_FILE="$2" ;;
-    --buffer-dir) BUFFER_DIR="$2" ;;
+    --log-file)   LOG_FILE="$2"   ;;
   esac
   shift 2
 done
-
-if [[ -z "$PROG_FILE" ]]; then
-  echo "--prog-file flag is required"
-  exit 1
-fi
 
 if [[ -z "$INPUT_FILE" ]]; then
   echo "--input-file flag is required"
   exit 1
 fi
 
-# Setups buffer paths and initialize the first buffer using the
-# input file. If a buffer directory was not provided, a random
-# temporary directory will be used.
-BUFFER_DIR=${BUFFER_DIR:-$(mktemp -d)}
-mkdir -p $BUFFER_DIR
-BUFFERS=( "${BUFFER_DIR}/a.txt" "${BUFFER_DIR}/b.txt" )
-awk '$0 = "input " $0' "$INPUT_FILE" > "${BUFFERS[1]}"
 
-# Run the cycles until the output is empty, which means there
-# are no more messages to process.
-CYCLE=0
-while [[ -s "${BUFFERS[1]}" ]]; do
-  BUFFERS=( "${BUFFERS[1]}" "${BUFFERS[0]}" )
 
+# Create the buffer dir and initialize the first buffer using the
+# input file. 
+
+awk '$0 = "input " $0' "$INPUT_FILE" > "$(next_messages)"
+
+
+
+# Run the cycles until the next set of messages is empty, which
+# means there are no more messages to process.
+
+while [[ -s "$(next_messages)" ]]; do
   CYCLE=$((CYCLE + 1))
-  echo "CYCLE $CYCLE"
 
-  gawk -f "$PROG_FILE" "${BUFFERS[0]}" > "${BUFFERS[1]}" || {
+  gawk -f prog.awk "$(current_messages)" > "$(next_messages)" || {
     exit $?
   }
 
   if [[ -n "$LOG_FILE" ]]; then
-    cat "${BUFFERS[0]}" >> "$LOG_FILE"
+    cat "$(current_messages)" >> "$LOG_FILE"
   fi
 done
