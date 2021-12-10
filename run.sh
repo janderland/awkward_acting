@@ -6,9 +6,8 @@ set -euo pipefail
 cd "${0%/*}"
 
 
-
 # This required arg specifies a file for initializing
-# the inital messages. Each line of text from this
+# the initial messages. Each line of text from this
 # file is sent as an "input" message.
 
 INPUT_FILE=""
@@ -31,7 +30,6 @@ BUFFER_DIR="$(mktemp -d)"
 CYCLE=0
 
 
-
 # Returns the path to the current set of input messages.
 
 function current_messages {
@@ -44,7 +42,6 @@ function current_messages {
 function next_messages {
   echo "${BUFFER_DIR}/$(((CYCLE + 1) % 2)).txt"
 }
-
 
 
 # Parse command-line arguments.
@@ -67,12 +64,10 @@ if [[ -z "$INPUT_FILE" ]]; then
 fi
 
 
-
 # Create the buffer dir and initialize the first buffer using the
 # input file. 
 
 awk '$0 = "input " $0' "$INPUT_FILE" > "$(next_messages)"
-
 
 
 # Run the cycles until the next set of messages is empty, which
